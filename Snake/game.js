@@ -45,6 +45,17 @@ class SnakeGame {
         
         // Set default difficulty button style
         this.updateDifficultyButtons();
+
+        // 添加最高分属性
+        this.highScore = localStorage.getItem('snakeHighScore') || 0;
+        
+        // 创建最高分显示面板
+        this.createScorePanel();
+
+        // 测试食物绘制
+        setTimeout(() => {
+            this.drawFood();
+        }, 1000);
     }
 
     setupControls() {
@@ -189,7 +200,7 @@ class SnakeGame {
         // Check if food is eaten
         if (newHead.x === this.food.x && newHead.y === this.food.y) {
             this.score += 10;
-            document.getElementById('scoreValue').textContent = this.score;
+            this.updateScore();
             this.food = this.generateFood();
         } else {
             // Remove tail if no food eaten
@@ -223,8 +234,8 @@ class SnakeGame {
             }
         });
 
-        // Draw food (apple)
-        this.ctx.drawImage(this.food.image, this.food.x * this.gridSize, this.food.y * this.gridSize, this.gridSize, this.gridSize);
+        // 使用专门的方法绘制食物
+        this.drawFood();
     }
 
     createMosaic() {
@@ -246,9 +257,12 @@ class SnakeGame {
     createStartButton() {
         this.startButton = document.createElement('button');
         this.startButton.textContent = 'Start Game';
-        this.startButton.style.marginTop = '10px';
+        this.startButton.style.marginTop = '10px'; // 保持原有的上边距
         this.startButton.style.padding = '10px 20px';
         this.startButton.style.fontSize = '16px';
+        this.startButton.style.display = 'block'; // 设置为块级元素
+        this.startButton.style.margin = '10px auto'; // 上下10px，左右自动居中
+        
         document.querySelector('.game-container').appendChild(this.startButton);
 
         this.startButton.addEventListener('click', () => {
@@ -296,7 +310,11 @@ class SnakeGame {
         this.modal.style.zIndex = '1000';
 
         this.modalContent = document.createElement('div');
-        this.modalContent.innerHTML = `<h2>Game Over</h2><p>Your Score: <strong id="finalScore">0</strong></p>`;
+        this.modalContent.innerHTML = `
+            <h2>Game Over</h2>
+            <p>Your Score: <strong id="finalScore">0</strong></p>
+            <p>Highest Score: <strong id="finalHighScore">${this.highScore}</strong></p>
+        `;
         this.modal.appendChild(this.modalContent);
 
         this.playAgainButton = document.createElement('button');
@@ -316,7 +334,7 @@ class SnakeGame {
         this.isPaused = false;
         this.score = 0;
         this.startButton.textContent = 'Start Game'; // Reset button text to Start Game
-        document.getElementById('scoreValue').textContent = this.score;
+        this.updateScore();
         this.snake = [{x: 5, y: 5}];
         this.direction = {x: 1, y: 0};
         this.food = this.generateFood();
@@ -327,6 +345,7 @@ class SnakeGame {
         this.isRunning = false;
         this.isPaused = false;
         document.getElementById('finalScore').textContent = this.score;
+        document.getElementById('finalHighScore').textContent = this.highScore;
         this.modal.style.display = 'block';
         this.startButton.textContent = 'Start Game'; // Reset button text to Start Game
     }
@@ -344,10 +363,122 @@ class SnakeGame {
         this.snake = [{x: 5, y: 5}];
         this.direction = {x: 1, y: 0};
         this.score = 0;
-        document.getElementById('scoreValue').textContent = this.score;
+        this.updateScore();
         this.food = this.generateFood();
         this.startButton.textContent = 'Pause'; // Change to Pause when game starts
         this.gameLoop();
+    }
+
+    // 修改分数面板方法，调整位置
+    createScorePanel() {
+        // 获取游戏画布的位置信息
+        const canvas = document.getElementById('gameCanvas');
+        const canvasRect = canvas.getBoundingClientRect();
+        
+        // 创建分数面板容器
+        const scorePanel = document.createElement('div');
+        scorePanel.id = 'scorePanel';
+        scorePanel.style.position = 'fixed'; // 使用fixed而不是absolute
+        scorePanel.style.left = `${canvasRect.right + 20}px`; // 游戏画布右侧20px
+        scorePanel.style.top = `${canvasRect.top + 100}px`; // 游戏画布顶部下移100px
+        scorePanel.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+        scorePanel.style.padding = '15px';
+        scorePanel.style.borderRadius = '10px';
+        scorePanel.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.3)';
+        scorePanel.style.fontFamily = 'Arial, sans-serif';
+        scorePanel.style.width = '150px'; // 固定宽度
+        scorePanel.style.zIndex = '100'; // 确保在游戏上方显示
+        
+        // 创建当前分数显示
+        const currentScore = document.createElement('div');
+        currentScore.id = 'currentScore';
+        currentScore.style.fontSize = '18px';
+        currentScore.style.marginBottom = '10px';
+        currentScore.textContent = `当前分数: ${this.score}`;
+        
+        // 创建最高分显示
+        const highScore = document.createElement('div');
+        highScore.id = 'highScoreDisplay';
+        highScore.style.fontSize = '18px';
+        highScore.style.fontWeight = 'bold';
+        highScore.style.color = '#4CAF50';
+        highScore.textContent = `最高分: ${this.highScore}`;
+        
+        // 添加到面板
+        scorePanel.appendChild(currentScore);
+        scorePanel.appendChild(highScore);
+        
+        // 添加到body
+        document.body.appendChild(scorePanel);
+        
+        // 完全移除底部的分数显示
+        const oldScoreElement = document.getElementById('score');
+        if (oldScoreElement) {
+            oldScoreElement.remove();
+        }
+        
+        // 移除分数值显示
+        const scoreValueElement = document.getElementById('scoreValue');
+        if (scoreValueElement) {
+            const parentElement = scoreValueElement.parentElement;
+            if (parentElement) {
+                parentElement.remove();
+            }
+        }
+        
+        // 添加窗口调整大小时更新位置的事件监听器
+        window.addEventListener('resize', () => {
+            const updatedRect = canvas.getBoundingClientRect();
+            scorePanel.style.left = `${updatedRect.right + 20}px`;
+            scorePanel.style.top = `${updatedRect.top + 100}px`; // 保持下移100px
+        });
+    }
+
+    // 修改更新分数的方法
+    updateScore() {
+        // 检查并更新最高分
+        if (this.score > this.highScore) {
+            this.highScore = this.score;
+            localStorage.setItem('snakeHighScore', this.highScore);
+        }
+        
+        // 更新当前分数显示
+        const currentScoreElement = document.getElementById('currentScore');
+        if (currentScoreElement) {
+            currentScoreElement.textContent = `当前分数: ${this.score}`;
+        }
+        
+        // 更新最高分显示
+        const highScoreElement = document.getElementById('highScoreDisplay');
+        if (highScoreElement) {
+            highScoreElement.textContent = `最高分: ${this.highScore}`;
+        }
+    }
+
+    // 修改绘制食物的方法
+    drawFood() {
+        const ctx = this.ctx;
+        
+        // 使用正确的网格坐标 - 乘以网格大小
+        const x = this.food.x * this.gridSize;
+        const y = this.food.y * this.gridSize;
+        
+        // 不使用fillRect来绘制背景，直接绘制食物
+        // 设置字体大小和样式
+        ctx.font = `${this.gridSize}px Arial`;
+        ctx.fillStyle = 'red';
+        
+        // 绘制苹果emoji - 注意y坐标需要调整以正确放置emoji
+        ctx.fillText('🍎', x, y + this.gridSize * 0.8);
+    }
+
+    // 只添加缺失的 drawBackground 方法，保持原有背景样式
+    drawBackground() {
+        // 空方法以避免错误
+    }
+
+    render() {
+        // 空方法
     }
 }
 
